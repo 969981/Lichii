@@ -363,8 +363,16 @@ bool Maxwell3D::IsFastDrawParameter(u32 method) {
         return true;
     default:
         return DrawManager::IsInstanceLoopMethod(method) || IsFastDrawDeltaMethod(method) ||
-               IsFastDrawVertexBuffer(method);
+               IsFastDrawVertexBuffer(method) || IsFastDrawVertexFormat(method);
     }
+}
+
+bool Maxwell3D::IsFastDrawVertexFormat(u32 method) {
+    // With dynamic vertex input only each attribute's type class is in the pipeline key, which
+    // the reusable draw compares (TakeReusableDraw); the rest is recorded for every draw.
+    constexpr u32 formats = MAXWELL3D_REG_INDEX(vertex_attrib_format);
+    return VideoCommon::Nx2FastDraw::g_dynamic_vertex_input.load(std::memory_order_relaxed) &&
+           method >= formats && method < formats + Regs::NumVertexAttributes;
 }
 
 bool Maxwell3D::IsFastDrawVertexBuffer(u32 method) {
@@ -998,6 +1006,11 @@ void Maxwell3D::ProcessCBBind(size_t stage_index) {
         VideoCommon::Nx2FastDraw::NoteBind(stage_index, bind_data.shader_slot);
     }
     buffer.enabled = bind_data.valid.Value() != 0;
+    if (VideoCommon::ListMacroTrace::g_enabled && buffer.enabled) {
+        VideoCommon::ListMacroTrace::NoteConstBufferBind(
+            static_cast<u32>(stage_index), bind_data.shader_slot, regs.const_buffer.Address(),
+            regs.const_buffer.size);
+    }
     buffer.address = regs.const_buffer.Address();
     buffer.size = regs.const_buffer.size;
 
@@ -1676,7 +1689,7 @@ void Maxwell3D::FrontRunMacro(Core::System& system, VideoCommon::GpuSplit& split
         ListTrace::g_enabled
             ? ListTrace::BeginCall(ListTrace::Engine::Maxwell3D, static_cast<EngineInterface*>(this),
                                    method, engine.native_code, engine.native_code_generation, start,
-                                   fs.parameters, native_data_ram)
+                                   fs.parameters, native_data_ram, fs.regs)
             : nullptr;
     const bool on_back = FrontRunOnBack(system, split, fs, engine, start);
     if (!on_back) {
@@ -1707,8 +1720,12 @@ void Maxwell3D::FrontRunMacro(Core::System& system, VideoCommon::GpuSplit& split
             engine.native_jit = std::make_shared<TuringMacroJit>();
         }
         engine.native_jit->Prepare(engine.native_code, engine.native_code_generation);
-        const auto result = engine.native_jit->Execute(
-            start, fs.parameters, std::span<u32>{native_data_ram}, read, emit);
+        const auto result =
+            trace != nullptr && trace->data_ram
+                ? engine.native_interpreter.Execute(engine.native_code, start, fs.parameters, read,
+                                                    emit)
+                : engine.native_jit->Execute(start, fs.parameters,
+                                             std::span<u32>{native_data_ram}, read, emit);
 #else
         const auto result =
             engine.native_interpreter.Execute(engine.native_code, start, fs.parameters, read, emit);
@@ -1720,7 +1737,8 @@ void Maxwell3D::FrontRunMacro(Core::System& system, VideoCommon::GpuSplit& split
         }
     }
     if (trace != nullptr) {
-        ListTrace::EndCall(*trace, on_back);
+        ListTrace::EndCall(*trace, on_back, engine.native_interpreter.data_ram_reads,
+                           engine.native_interpreter.data_ram_writes);
     }
     fs.parameters.clear();
     if (fs.draw_pending) {
