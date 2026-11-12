@@ -482,6 +482,11 @@ jobs:
         run: |
           set -euo pipefail
           export PATH="/ucrt64/bin:$PATH"
+          # Rust's MSVC staticlib is incompatible with MinGW. The GUI links
+          # to the official C ABI import library; ship its runtime beside it.
+          nxformat_dll="build/release/externals/nxformat-1.0.3-windows-x64/bin/nxformat.dll"
+          test -s "$nxformat_dll"
+          cp "$nxformat_dll" build/release/bin/nxformat.dll
           cd build/release/bin
           test -f lichii.exe
           test -f eden-cli.exe
@@ -700,7 +705,7 @@ jobs:
           | Build Type | Standard | PGO (Recommended) | Notes |
           | --- | --- | --- | --- |
           | amd64 / x86_64 (MSVC) | [MSVC zip](${base}/lichii-windows-x86_64.zip) | | Use if you run into graphical issues on other builds |
-          | amd64 / x86_64 (MinGW) | | [PGO zip](${base}/lichii-windows-x86_64-pgo.zip) | Built with MinGW clang; bundles its own DLLs, no Visual C++ redistributable needed |
+          | amd64 / x86_64 (MinGW) | | [PGO zip](${base}/lichii-windows-x86_64-pgo.zip) | Built with MinGW clang; bundles Qt and nxformat.dll (Windows may require the Microsoft Visual C++ runtime) |
 
           ## macOS
 

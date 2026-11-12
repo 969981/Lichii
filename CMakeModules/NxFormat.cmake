@@ -75,8 +75,14 @@ function(lichii_find_nxformat)
     endif()
 
     find_package(nxformat ${version} REQUIRED CONFIG PATHS "${root}/lib/cmake/nxformat" NO_DEFAULT_PATH)
-    set_target_properties(nxformat::static_nozstd PROPERTIES IMPORTED_GLOBAL TRUE)
-    set_property(TARGET nxformat::static_nozstd APPEND PROPERTY INTERFACE_LINK_LIBRARIES zstd::zstd)
+    # The upstream Windows release's Rust staticlib targets MSVC. MinGW
+    # must link its stable C ABI DLL instead of mixing incompatible runtimes.
+    if (MINGW)
+        set_target_properties(nxformat::nxformat PROPERTIES IMPORTED_GLOBAL TRUE)
+    else()
+        set_target_properties(nxformat::static_nozstd PROPERTIES IMPORTED_GLOBAL TRUE)
+        set_property(TARGET nxformat::static_nozstd APPEND PROPERTY INTERFACE_LINK_LIBRARIES zstd::zstd)
+    endif()
     if (MSVC)
         # The library is built against the release DLL runtime (/MD); Debug builds use /MDd.
         set_property(TARGET nxformat::static_nozstd APPEND PROPERTY INTERFACE_LINK_OPTIONS

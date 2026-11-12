@@ -499,10 +499,16 @@ endif()
 # Remember that the linker is incredibly stupid.
 target_link_libraries(yuzu PRIVATE OpenSSL::SSL OpenSSL::Crypto SDL3::SDL3)
 
-# NX archive conversion and editing (nx_tools.cpp) runs nxformat in the process, linked statically.
+# Preserve NX conversion on MinGW via nxformat's stable C ABI DLL. Its
+# prebuilt Rust/MSVC static archive cannot be linked into a MinGW executable.
+# On other platforms keep the smaller, statically linked no-zstd variant.
 if (TARGET nxformat::static_nozstd)
     target_sources(yuzu PRIVATE nx_tools.h nx_tools.cpp)
-    target_link_libraries(yuzu PRIVATE nxformat::static_nozstd)
+    if (MINGW)
+        target_link_libraries(yuzu PRIVATE nxformat::nxformat)
+    else()
+        target_link_libraries(yuzu PRIVATE nxformat::static_nozstd)
+    endif()
     target_compile_definitions(yuzu PRIVATE LICHII_NX_TOOLS)
 endif()
 create_target_directory_groups(yuzu)
