@@ -1,7 +1,6 @@
 // SPDX-FileCopyrightText: Copyright 2026 Eden Emulator Project
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-// SPDX-FileCopyrightText: Copyright 2023 yuzu Emulator Project
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include <mutex>
@@ -14,6 +13,7 @@
 
 #include "common/fs/file.h"
 #include "common/hex_util.h"
+#include "common/net/ca_store.h"
 #include "common/nextendo.h"
 #include "common/string_util.h"
 
@@ -22,10 +22,6 @@
 #include "core/internal_network/local_redirect.h"
 #include "core/internal_network/network.h"
 #include "core/internal_network/sockets.h"
-
-#ifdef YUZU_BUNDLED_OPENSSL
-#include <openssl/cert.h>
-#endif
 
 using namespace Common::FS;
 
@@ -49,7 +45,7 @@ void OneTimeInit();
 void OneTimeInitLogFile();
 bool OneTimeInitBIO();
 
-#ifdef YUZU_BUNDLED_OPENSSL
+#ifdef LICHII_BUNDLED_OPENSSL
 // This is ported from httplib
 struct scope_exit {
   explicit scope_exit(std::function<void(void)> &&f)
@@ -137,7 +133,7 @@ X509_STORE* TestCaStore(const std::vector<u8>& der_data) {
     store = nullptr;
     built_for = der_data;
     // The same roots as the context's store (OneTimeInit).
-#ifdef YUZU_BUNDLED_OPENSSL
+#ifdef LICHII_BUNDLED_OPENSSL
     X509_STORE* roots = CreateCaCertStore(kCert, sizeof(kCert));
 #else
     X509_STORE* roots = X509_STORE_new();
@@ -145,6 +141,10 @@ X509_STORE* TestCaStore(const std::vector<u8>& der_data) {
     if (roots != nullptr && X509_STORE_set_default_paths(roots) != 1) {
         X509_STORE_free(roots);
         roots = nullptr;
+    }
+    if (const auto bundle = Common::Net::FindSystemCaBundle();
+        roots != nullptr && !bundle.empty()) {
+        X509_STORE_load_file(roots, bundle.c_str());
     }
     const unsigned char* der = der_data.data();
     X509* const ca = d2i_X509(nullptr, &der, static_cast<long>(der_data.size()));
@@ -522,7 +522,7 @@ void OneTimeInit() {
 
     // Bundled OpenSSL: the bundled CA certificates, before the default verify paths are added
     // to the same store.
-#ifdef YUZU_BUNDLED_OPENSSL
+#ifdef LICHII_BUNDLED_OPENSSL
     LoadCaCertStore(ssl_ctx, kCert, sizeof(kCert));
 #endif
 
@@ -532,6 +532,10 @@ void OneTimeInit() {
         LOG_ERROR(Service_SSL, "SSL_CTX_set_default_verify_paths failed");
         CheckOpenSSLErrors();
         return;
+    }
+
+    if (const auto bundle = Common::Net::FindSystemCaBundle(); !bundle.empty()) {
+        SSL_CTX_load_verify_locations(ssl_ctx, bundle.c_str(), nullptr);
     }
 
     OneTimeInitLogFile();

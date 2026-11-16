@@ -1,12 +1,12 @@
 // SPDX-FileCopyrightText: Copyright 2026 Eden Emulator Project
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-// SPDX-FileCopyrightText: Copyright 2022 yuzu Emulator Project
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #pragma once
 
 #include <climits>
+#include <unordered_map>
 #include <vector>
 
 #include "common/common_types.h"
@@ -63,7 +63,6 @@ private:
         u32 log2_level;
         u64 index;
         u64 tick = 0;
-        bool deferred{};
 
         StagingBufferRef Ref() const noexcept {
             return {
@@ -80,6 +79,10 @@ private:
 
     struct StagingBuffers {
         std::vector<StagingBuffer> entries;
+        /// Handed out deferred, by index, until FreeDeferred: lookups don't scan them. Tens of
+        /// thousands of copies of GPU-written command list pages stay held in Hyrule Warriors:
+        /// Age of Imprisonment fights, which made each dispatch's copies scan them all.
+        std::unordered_map<u64, StagingBuffer> deferred;
         size_t delete_index = 0;
         size_t iterate_index = 0;
     };
@@ -101,6 +104,9 @@ private:
     StagingBuffersCache& GetCache(MemoryUsage usage);
 
     void ReleaseCache(MemoryUsage usage);
+
+    /// Frees every staging buffer the GPU is done with, of every kind (out of memory).
+    void ReleaseIdleBuffers();
 
     void ReleaseLevel(StagingBuffersCache& cache, size_t log2);
     size_t Region(size_t iter) const noexcept {
