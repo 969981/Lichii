@@ -91,15 +91,19 @@ jobs:
                     # The same two upstream-source overrides were reviewed in
                     # the previous merge-based workflow.
                     src/lichii/CMakeLists.txt)
-                      # Upstream renamed the target from yuzu to lichii. Keep its
-                      # new source list, but retain our reviewed MinGW nxformat
-                      # DLL linkage instead of the incompatible static archive.
+                      # Preserve the fork's reviewed MinGW nxformat DLL linkage
+                      # while taking the renamed upstream target and new sources.
                       if [[ "$(git rev-parse "$upstream:$path")" != "b6e5b2d576cd75f50e6efc1594d331495d9529c9" ]]; then
-                        echo "::error::Upstream lichii CMake changed; review the target rename."
+                        echo "::error::Upstream CMake changed; manual review required."
                         exit 1
                       fi
                       git show "$upstream:$path" > "$path"
-                      if [[ "$(grep -c '^    target_link_libraries(lichii PRIVATE nxformat::static_nozstd)
+                      python3 -c 'from pathlib import Path; import sys; p=Path(sys.argv[1]); s=p.read_text(); old="    target_link_libraries(lichii PRIVATE nxformat::static_nozstd)"; new="    if (MINGW)\n        target_link_libraries(lichii PRIVATE nxformat::nxformat)\n    else()\n        target_link_libraries(lichii PRIVATE nxformat::static_nozstd)\n    endif()"; assert s.count(old) == 1; p.write_text(s.replace(old, new))' "$path"
+                      git add -- "$path"
+                      echo "Resolved CMake rename with MinGW DLL linkage: $path" >> "$GITHUB_STEP_SUMMARY"
+                      ;;
+                    src/core/arm/dynarmic/window_trace.h|src/shader_recompiler/frontend/ampere/lower_to_maxwell.h)
+                      git show "$upstream:$path" > "$path"
                       git add -- "$path"
                       echo "Resolved reviewed source conflict: $path" >> "$GITHUB_STEP_SUMMARY"
                       ;;
