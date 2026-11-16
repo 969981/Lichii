@@ -15,7 +15,7 @@ on:
     paths:
       - "src/**"
       # Test-only changes cannot change a binary: the build configures with BUILD_TESTING=OFF and
-      # YUZU_TESTS=OFF below, so a push that only touches src/tests has nothing to rebuild.
+      # LICHII_TESTS=OFF below, so a push that only touches src/tests has nothing to rebuild.
       - "!src/tests/**"
       - "CMakeLists.txt"
       - "CMakeModules/**"
@@ -273,13 +273,13 @@ jobs:
           flags=(
             -DCMAKE_BUILD_TYPE=Release
             -DBUILD_TESTING=OFF
-            -DYUZU_TESTS=OFF
-            -DYUZU_CMD=ON
-            -DYUZU_ROOM=OFF
-            -DYUZU_ROOM_STANDALONE=OFF
-            -DYUZU_USE_BUNDLED_QT=OFF
+            -DLICHII_TESTS=OFF
+            -DLICHII_CMD=ON
+            -DLICHII_ROOM=OFF
+            -DLICHII_ROOM_STANDALONE=OFF
+            -DLICHII_USE_BUNDLED_QT=OFF
             "-DCMAKE_PREFIX_PATH=$QT_ROOT_DIR"
-            -DYUZU_USE_BUNDLED_SDL3=ON
+            -DLICHII_USE_BUNDLED_SDL3=ON
             -DVulkanHeaders_FORCE_BUNDLED=ON
             -DVulkanUtilityLibraries_FORCE_BUNDLED=ON
             -DENABLE_UPDATE_CHECKER=OFF
@@ -307,12 +307,12 @@ jobs:
           cmake -S . -B build/release -G Ninja
           -DCMAKE_BUILD_TYPE=Release
           -DBUILD_TESTING=OFF
-          -DYUZU_TESTS=OFF
-          -DYUZU_CMD=ON
-          -DYUZU_ROOM=OFF
-          -DYUZU_ROOM_STANDALONE=OFF
-          -DYUZU_USE_BUNDLED_QT=OFF
-          -DYUZU_USE_BUNDLED_SDL3=ON
+          -DLICHII_TESTS=OFF
+          -DLICHII_CMD=ON
+          -DLICHII_ROOM=OFF
+          -DLICHII_ROOM_STANDALONE=OFF
+          -DLICHII_USE_BUNDLED_QT=OFF
+          -DLICHII_USE_BUNDLED_SDL3=ON
           -DENABLE_UPDATE_CHECKER=OFF
           -DUSE_DISCORD_PRESENCE=OFF
           -DCMAKE_C_COMPILER_LAUNCHER=sccache
@@ -326,11 +326,11 @@ jobs:
           cmake -S . -B build/release -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DBUILD_TESTING=OFF \
-            -DYUZU_TESTS=OFF \
-            -DYUZU_CMD=ON \
-            -DYUZU_ROOM=OFF \
-            -DYUZU_ROOM_STANDALONE=OFF \
-            -DYUZU_USE_BUNDLED_QT=OFF \
+            -DLICHII_TESTS=OFF \
+            -DLICHII_CMD=ON \
+            -DLICHII_ROOM=OFF \
+            -DLICHII_ROOM_STANDALONE=OFF \
+            -DLICHII_USE_BUNDLED_QT=OFF \
             "-DCMAKE_PREFIX_PATH=$(brew --prefix qt@6);$(brew --prefix zlib)" \
             "-DOPENSSL_ROOT_DIR=$(brew --prefix openssl@3)" \
             -DVulkanHeaders_FORCE_BUNDLED=ON \
@@ -351,13 +351,13 @@ jobs:
           cmake -S . -B build/release -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DBUILD_TESTING=OFF \
-            -DYUZU_TESTS=OFF \
-            -DYUZU_CMD=ON \
-            -DYUZU_ROOM=OFF \
-            -DYUZU_ROOM_STANDALONE=OFF \
-            -DYUZU_USE_BUNDLED_QT=OFF \
-            -DYUZU_USE_BUNDLED_SDL3=ON \
-            -DYUZU_USE_BUNDLED_FFMPEG=ON \
+            -DLICHII_TESTS=OFF \
+            -DLICHII_CMD=ON \
+            -DLICHII_ROOM=OFF \
+            -DLICHII_ROOM_STANDALONE=OFF \
+            -DLICHII_USE_BUNDLED_QT=OFF \
+            -DLICHII_USE_BUNDLED_SDL3=ON \
+            -DLICHII_USE_BUNDLED_FFMPEG=ON \
             -DVulkanHeaders_FORCE_BUNDLED=ON \
             -DVulkanUtilityLibraries_FORCE_BUNDLED=ON \
             -DENABLE_UPDATE_CHECKER=OFF \
@@ -381,7 +381,7 @@ jobs:
         shell: bash
         run: |
           if command -v ccache > /dev/null; then ccache --zero-stats; else sccache --zero-stats; fi
-          cmake --build build/release --target yuzu yuzu-cmd --parallel
+          cmake --build build/release --target lichii lichii-cmd --parallel
           if command -v ccache > /dev/null; then ccache --show-stats; else sccache --show-stats; fi
 
       - name: Build MinGW PGO
@@ -389,7 +389,7 @@ jobs:
         shell: msys2 {0}
         run: |
           ccache --zero-stats
-          cmake --build build/release --target yuzu yuzu-cmd --parallel
+          cmake --build build/release --target lichii lichii-cmd --parallel
           ccache --show-stats
 
       - name: Stop sccache on Windows
@@ -415,10 +415,10 @@ jobs:
         run: |
           set -euo pipefail
           test -x build/release/bin/lichii
-          test -x build/release/bin/eden-cli
-          strip build/release/bin/lichii build/release/bin/eden-cli
+          test -x build/release/bin/lichii-cmd
+          strip build/release/bin/lichii build/release/bin/lichii-cmd
           tar -czf "lichii-${GITHUB_SHA}-${{ matrix.platform }}.tar.gz" \
-            -C build/release/bin lichii eden-cli
+            -C build/release/bin lichii lichii-cmd
           ls -la "lichii-${GITHUB_SHA}-${{ matrix.platform }}.tar.gz"
 
       # A self-contained AppImage: linuxdeploy bundles every library the two programs need except
@@ -430,7 +430,7 @@ jobs:
         run: |
           set -euo pipefail
           test -x build/release/bin/lichii
-          test -x build/release/bin/eden-cli
+          test -x build/release/bin/lichii-cmd
           tools="$RUNNER_TEMP/linuxdeploy"
           mkdir -p "$tools"
           arch=$(uname -m)   # aarch64 or x86_64
@@ -454,7 +454,7 @@ jobs:
           export ARCH="$arch"
           "$tools/linuxdeploy-$arch.AppImage" --appdir AppDir \
             --executable build/release/bin/lichii \
-            --executable build/release/bin/eden-cli \
+            --executable build/release/bin/lichii-cmd \
             --desktop-file dist/io.github.zortos293.lichii.desktop \
             --icon-file "$icon" \
             --plugin qt \
@@ -466,7 +466,7 @@ jobs:
         if: matrix.platform == 'windows-x86_64'
         shell: pwsh
         run: |
-          foreach ($exe in 'lichii.exe', 'eden-cli.exe') {
+          foreach ($exe in 'lichii.exe', 'lichii-cmd.exe') {
             if (-not (Test-Path "build/release/bin/$exe")) {
               throw "build/release/bin/$exe was not produced"
             }
@@ -489,7 +489,7 @@ jobs:
           cp "$nxformat_dll" build/release/bin/nxformat.dll
           cd build/release/bin
           test -f lichii.exe
-          test -f eden-cli.exe
+          test -f lichii-cmd.exe
           windeployqt6 --no-translations --no-compiler-runtime --no-opengl-sw \
             --no-system-dxc-compiler --no-system-d3d-compiler lichii.exe
           deps() {
@@ -507,7 +507,7 @@ jobs:
               fi
             done
           }
-          for exe in lichii.exe eden-cli.exe; do
+          for exe in lichii.exe lichii-cmd.exe; do
             deps "$exe"
           done
           find . -name '*.dll' | while read -r dll; do
@@ -524,10 +524,10 @@ jobs:
           set -euo pipefail
           app=build/release/bin/lichii.app
           test -x "$app/Contents/MacOS/lichii"
-          test -x build/release/bin/eden-cli
-          cp build/release/bin/eden-cli "$app/Contents/MacOS/eden-cli"
+          test -x build/release/bin/lichii-cmd
+          cp build/release/bin/lichii-cmd "$app/Contents/MacOS/lichii-cmd"
           "$(brew --prefix qt@6)/bin/macdeployqt" "$app" \
-            -executable="$app/Contents/MacOS/eden-cli" -libpath="$(brew --prefix)/lib" \
+            -executable="$app/Contents/MacOS/lichii-cmd" -libpath="$(brew --prefix)/lib" \
             -always-overwrite -verbose=1
           # Qt's virtual keyboard input plugin pulls in the QML stack, which the emulator doesn't use.
           rm -f "$app/Contents/PlugIns/platforminputcontexts/libqtvirtualkeyboardplugin.dylib"
@@ -540,7 +540,7 @@ jobs:
               done
           done
           # Libraries that load their dependencies through @rpath find them in the bundle.
-          for program in lichii eden-cli; do
+          for program in lichii lichii-cmd; do
             install_name_tool -add_rpath @executable_path/../Frameworks \
               "$app/Contents/MacOS/$program" 2> /dev/null
           done
@@ -559,7 +559,7 @@ jobs:
           codesign --force --deep --sign - "$app"
           if [ -f dist/eglantine.entitlements ]; then
             codesign --force --sign - --entitlements dist/eglantine.entitlements \
-              "$app/Contents/MacOS/eden-cli"
+              "$app/Contents/MacOS/lichii-cmd"
             codesign --force --sign - --entitlements dist/eglantine.entitlements "$app"
           fi
           codesign --verify --deep --strict "$app"
@@ -700,7 +700,7 @@ jobs:
 
           ## Windows
 
-          Windows packages are in-place zip files: extract and run \`lichii.exe\`, or \`eden-cli.exe\` from a terminal.
+          Windows packages are in-place zip files: extract and run \`lichii.exe\`, or \`lichii-cmd.exe\` from a terminal.
 
           | Build Type | Standard | PGO (Recommended) | Notes |
           | --- | --- | --- | --- |
@@ -711,7 +711,7 @@ jobs:
 
           | Build Type | Standard | PGO (Recommended) | Notes |
           | --- | --- | --- | --- |
-          | arm64 (Apple Silicon) | [zip](${base}/lichii-macos-arm64.zip) | | macOS 15 or newer. Not notarized: right-click and choose Open the first time, or run \`xattr -dr com.apple.quarantine lichii.app\`. \`eden-cli\` is inside the app, in \`Contents/MacOS\` |
+          | arm64 (Apple Silicon) | [zip](${base}/lichii-macos-arm64.zip) | | macOS 15 or newer. Not notarized: right-click and choose Open the first time, or run \`xattr -dr com.apple.quarantine lichii.app\`. \`lichii-cmd\` is inside the app, in \`Contents/MacOS\` |
 
           The PGO builds are the same programs compiled with profile-guided optimization (clang plus Eglantine's profile); prefer them when your CPU supports it.
           EOF
