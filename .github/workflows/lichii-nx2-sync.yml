@@ -156,12 +156,7 @@ jobs:
                         echo "::error::Expected nxformat link line is missing or repeated."
                         exit 1
                       fi
-                      sed -i '/^    target_link_libraries(lichii PRIVATE nxformat::static_nozstd)$/c\
-    if (MINGW)\
-        target_link_libraries(lichii PRIVATE nxformat::nxformat)\
-    else()\
-        target_link_libraries(lichii PRIVATE nxformat::static_nozstd)\
-    endif()' "$path"
+                      python3 -c 'from pathlib import Path; import sys; p=Path(sys.argv[1]); s=p.read_text(); old="    target_link_libraries(lichii PRIVATE nxformat::static_nozstd)"; new="    if (MINGW)\n        target_link_libraries(lichii PRIVATE nxformat::nxformat)\n    else()\n        target_link_libraries(lichii PRIVATE nxformat::static_nozstd)\n    endif()"; assert s.count(old) == 1; p.write_text(s.replace(old, new))' "$path"
                       git add -- "$path"
                       echo "Resolved reviewed target rename and retained MinGW nxformat linkage: $path" >> "$GITHUB_STEP_SUMMARY"
                       ;;
