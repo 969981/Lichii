@@ -492,14 +492,18 @@ jobs:
         run: |
           set -euo pipefail
           export PATH="/ucrt64/bin:$PATH"
-          # Rust's MSVC staticlib is incompatible with MinGW. The GUI links
-          # to the official C ABI import library; ship its runtime beside it.
-          nxformat_dll="build/release/externals/nxformat-1.0.3-windows-x64/bin/nxformat.dll"
-          test -s "$nxformat_dll"
-          cp "$nxformat_dll" build/release/bin/nxformat.dll
+          # CMakeModules/NxFormat.cmake intentionally disables the converter on
+          # MinGW because the available static library targets MSVC.
+          # Fail if a future binary unexpectedly needs an unbundled DLL.
           cd build/release/bin
           test -f lichii.exe
           test -f lichii-cmd.exe
+          if objdump -p lichii.exe | grep -Eiq 'DLL Name:[[:space:]]*nxformat[.]dll'; then
+            test -s nxformat.dll || {
+              echo "::error::lichii.exe requires nxformat.dll, but it was not bundled"
+              exit 1
+            }
+          fi
           windeployqt6 --no-translations --no-compiler-runtime --no-opengl-sw \
             --no-system-dxc-compiler --no-system-d3d-compiler lichii.exe
           deps() {
