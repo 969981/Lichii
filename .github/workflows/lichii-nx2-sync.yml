@@ -4,18 +4,12 @@
 name: Lichii | Sync upstream nx2 and launch releases
 
 on:
-  schedule:
-    - cron: "17,47 * * * *"
   workflow_dispatch:
     inputs:
       force_build:
         description: "Dispatch a build even if Lichii nx2 did not change"
         type: boolean
         default: false
-  push:
-    branches: [nx2]
-    paths:
-      - ".github/workflows/lichii-nx2-sync.yml"
 
 permissions:
   contents: write
