@@ -92,7 +92,7 @@
         "ci": true,
         "name": "ffmpeg",
         "package": "FFmpeg",
-        "repo": "Djihads80/Eglantine",
+        "repo": "Eglantine-Community/Eglantine",
         "version": "9.0.2-av1-mingw-1"
     },
     "fmt": {
